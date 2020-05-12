@@ -11,6 +11,9 @@ import AVFoundation
 
 class CameraViewController: UIViewController {
     
+    lazy private var captureSession = AVCaptureSession()
+    lazy private var fileOutput = AVCapture
+    
     @IBOutlet var recordButton: UIButton!
     @IBOutlet var cameraView: CameraPreviewView!
     
@@ -22,9 +25,18 @@ class CameraViewController: UIViewController {
         cameraView.videoPlayerLayer.videoGravity = .resizeAspectFill
     }
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        requestPermissionAndShowCamera()
+    }
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        requestPermissionAndShowCamera()
+        captureSession.startRunning()
+    }
+    
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        captureSession.stopRunning()
     }
     private func requestPermissionAndShowCamera() {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
@@ -55,8 +67,39 @@ class CameraViewController: UIViewController {
         
     }
     
+    private func setupCamera() {
+           let camera = bestCamera()
+           captureSession.beginConfiguration()
+           guard let cameraInput = try? AVCaptureDeviceInput(device: camera) else {
+               preconditionFailure("Can't create an input from the camera, but we should do something better than crashing!")
+           }
+           guard captureSession.canAddInput(cameraInput) else {
+               preconditionFailure("This session can't handle this type of input: \(cameraInput)")
+           }
+           captureSession.addInput(cameraInput)
+           if captureSession.canSetSessionPreset(.hd1920x1080) {
+               captureSession.sessionPreset = .hd1920x1080
+           }
+           captureSession.commitConfiguration()
+           cameraView.session = captureSession
+       }
+    
+    private func bestCamera() -> AVCaptureDevice {
+        if let device = AVCaptureDevice.default(.builtInUltraWideCamera, for: .video, position: .back) {
+            return device
+        }
+        if let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
+            return device
+        }
+        preconditionFailure("No cameras on device match the specs we need.")
+    }
+    
     @IBAction func recordButtonPressed(_ sender: Any) {
-        
+        if fileOutput.isRecording {
+            fileOutput.stopRecording()
+        } else {
+            fileOutput.startRecording(to: newRecordingURL(), recordingDelegate: self)
+        }
     }
     
     /// Creates a new file URL in the documents directory
