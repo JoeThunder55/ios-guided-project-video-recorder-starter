@@ -24,6 +24,23 @@ class CameraViewController: UIViewController {
         
         // Resize camera preview to fill the entire screen
         cameraView.videoPlayerLayer.videoGravity = .resizeAspectFill
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTapGesture(_:)))
+        view.addGestureRecognizer(tapGesture)
+    }
+    
+    @IBAction func handleTapGesture(_ sender: UITapGestureRecognizer) {
+        if sender.state == .ended {
+            playRecording()
+        }
+    }
+    
+    func playMovie(url: URL) { }
+    
+    func playRecording() {
+        if let player = player {
+            player.seek(to: CMTime.zero) // N/D, D = 600
+            player.play()
+        }
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -83,10 +100,14 @@ class CameraViewController: UIViewController {
     
     private func setupCamera() {
            let camera = bestCamera()
+        let microphone = bestMicrophone()
            captureSession.beginConfiguration()
            guard let cameraInput = try? AVCaptureDeviceInput(device: camera) else {
                preconditionFailure("Can't create an input from the camera, but we should do something better than crashing!")
            }
+        guard let microphoneInput = try? AVCaptureDeviceInput(device: microphone) else {
+            preconditionFailure("Can't create an input from the microphone, but we should do something better than crashing!")
+        }
            guard captureSession.canAddInput(cameraInput) else {
                preconditionFailure("This session can't handle this type of input: \(cameraInput)")
            }
@@ -94,6 +115,14 @@ class CameraViewController: UIViewController {
            if captureSession.canSetSessionPreset(.hd1920x1080) {
                captureSession.sessionPreset = .hd1920x1080
            }
+        
+        guard captureSession.canAddInput(microphoneInput) else {
+            preconditionFailure("This session can't handle this type of input: \(microphoneInput)")
+        }
+        captureSession.addInput(microphoneInput)
+        if captureSession.canSetSessionPreset(.hd1920x1080) {
+            captureSession.sessionPreset = .hd1920x1080
+        }
            captureSession.commitConfiguration()
            cameraView.session = captureSession
        }
@@ -106,6 +135,13 @@ class CameraViewController: UIViewController {
             return device
         }
         preconditionFailure("No cameras on device match the specs we need.")
+    }
+    
+    private func bestMicrophone() -> AVCaptureDevice {
+        if let device = AVCaptureDevice.default(for: .audio) {
+            return device
+        }
+        preconditionFailure("No microphones on device match the specs we need.")
     }
     
     @IBAction func recordButtonPressed(_ sender: Any) {
