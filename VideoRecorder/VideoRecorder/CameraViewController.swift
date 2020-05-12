@@ -12,7 +12,8 @@ import AVFoundation
 class CameraViewController: UIViewController {
     
     lazy private var captureSession = AVCaptureSession()
-    lazy private var fileOutput = AVCapture
+    lazy private var fileOutput = AVCaptureMovieFileOutput()
+    private var player: AVPlayer!
     
     @IBOutlet var recordButton: UIButton!
     @IBOutlet var cameraView: CameraPreviewView!
@@ -67,6 +68,19 @@ class CameraViewController: UIViewController {
         
     }
     
+    func playMovie(url: URL) {
+        player = AVPlayer(url: url)
+        let playerView = MoviePlayerView()
+        playerView.player = player
+        var topRect = view.bounds
+        topRect.size.height /= 4
+        topRect.size.width /= 4
+        topRect.origin.y = view.layoutMargins.top
+        
+        playerView.frame = topRect
+        view.addSubview(playerView)
+    }
+    
     private func setupCamera() {
            let camera = bestCamera()
            captureSession.beginConfiguration()
@@ -113,5 +127,25 @@ class CameraViewController: UIViewController {
         let fileURL = documentsDirectory.appendingPathComponent(name).appendingPathExtension("mov")
         return fileURL
     }
+    
+    func updateViews() {
+        recordButton.isSelected = fileOutput.isRecording
+    }
 }
 
+
+extension CameraViewController: AVCaptureFileOutputRecordingDelegate {
+    func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
+        if let error = error {
+            print("Error saving video: \(error)")
+        }
+        print("Video URL: \(outputFileURL)")
+        updateViews()
+        playMovie(url: outputFileURL)
+    }
+    
+    func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
+        
+        updateViews()
+    }
+}
